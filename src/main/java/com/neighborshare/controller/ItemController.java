@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -85,6 +86,18 @@ public class ItemController {
 
     @PutMapping("/{itemId}")
     public ResponseEntity<ItemResponse> updateItem(
+        @PathVariable UUID itemId,
+        @Valid @RequestBody UpdateItemRequest request,
+        Authentication authentication,
+        HttpServletRequest httpRequest
+    ) {
+        UUID userId = extractUserId(authentication);
+        UUID apartmentId = extractApartmentId(httpRequest);
+        return ResponseEntity.ok(itemService.updateItem(userId, apartmentId, itemId, request));
+    }
+
+    @PatchMapping("/{itemId}")
+    public ResponseEntity<ItemResponse> patchItem(
         @PathVariable UUID itemId,
         @Valid @RequestBody UpdateItemRequest request,
         Authentication authentication,

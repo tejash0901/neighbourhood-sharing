@@ -1,6 +1,7 @@
 package com.neighborshare.dto.request;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -33,6 +34,7 @@ public class UpdateItemRequest {
 
     private Boolean isAvailable;
 
+    @Min(value = 1, message = "maxConsecutiveDays must be >= 1")
     private Integer maxConsecutiveDays;
 
     private List<String> images;

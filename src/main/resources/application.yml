@@ -131,3 +131,9 @@ app:
   default-trust-score: 50
   max-images-per-item: 10
   max-image-size-mb: 5
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

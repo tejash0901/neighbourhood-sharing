@@ -2,6 +2,7 @@ package com.neighborshare.domain.entity;
 
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.*;
@@ -40,6 +41,7 @@ public class Dispute {
     private String description;
 
     @Column(columnDefinition = "jsonb")
+    @ColumnTransformer(write = "?::jsonb")
     @Builder.Default
     private String evidence = "[]";
 

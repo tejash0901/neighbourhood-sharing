@@ -3,6 +3,7 @@ package com.neighborshare.domain.entity;
 import com.neighborshare.domain.valueobject.BookingStatus;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.*;
@@ -93,6 +94,7 @@ public class Booking {
     private String returnNotes;
 
     @Column(columnDefinition = "jsonb")
+    @ColumnTransformer(write = "?::jsonb")
     @Builder.Default
     private String returnImages = "[]";
 

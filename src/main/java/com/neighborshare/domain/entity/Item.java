@@ -3,7 +3,11 @@ package com.neighborshare.domain.entity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.ColumnTransformer;
+import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -24,6 +28,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@DynamicUpdate
 public class Item {
 
     @Id
@@ -66,6 +71,8 @@ public class Item {
     private Integer maxConsecutiveDays = 7;
 
     @Column(columnDefinition = "jsonb", nullable = false)
+    @JdbcTypeCode(SqlTypes.JSON)
+    @ColumnTransformer(write = "?::jsonb")
     @JsonProperty("images")
     @Builder.Default
     private String images = "[]";
