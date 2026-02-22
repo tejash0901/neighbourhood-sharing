@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: neighborshare-postgres
+    environment:
+      POSTGRES_DB: neighborshare
+      POSTGRES_USER: neighborshare_app
+      POSTGRES_PASSWORD: admintest
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - neighborshare-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neighborshare_app -d neighborshare"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: neighborshare-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - neighborshare-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # LocalStack (AWS S3, SQS, SNS mock)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: neighborshare-localstack
+    environment:
+      SERVICES: s3,sqs,sns
+      DEBUG: 1
+      DATA_DIR: /tmp/localstack/data
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    volumes:
+      - localstack_data:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - neighborshare-network
+
+  # Spring Boot Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neighborshare-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+    environment:
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: neighborshare
+      DB_USER: neighborshare_app
+      DB_PASSWORD: admintest
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # AWS (LocalStack)
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://localstack:4566
+      S3_BUCKET: neighborshare-images
+
+      # JWT
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-minimum-256-bits
+
+      # Stripe (use test keys)
+      STRIPE_API_KEY: sk_test_placeholder
+
+      # Spring profiles
+      SPRING_PROFILES_ACTIVE: dev
+    ports:
+      - "8080:8080"
+    networks:
+      - neighborshare-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  localstack_data:
+
+networks:
+  neighborshare-network:
+    driver: bridge
