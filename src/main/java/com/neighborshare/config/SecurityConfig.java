@@ -49,6 +49,8 @@ public class SecurityConfig {
                 // Public endpoints
                 .requestMatchers("/v1/auth/**").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/v1/payments/webhook").permitAll()
+                .requestMatchers("/api/v1/payments/webhook").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/actuator/**").permitAll()
                 .requestMatchers("/health").permitAll()

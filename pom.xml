@@ -26,7 +26,6 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <lombok.version>1.18.38</lombok.version>
-        <stripe.version>24.5.0</stripe.version>
         <aws-sdk.version>2.24.10</aws-sdk.version>
         <jjwt.version>0.12.3</jjwt.version>
     </properties>
@@ -113,13 +112,6 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sns</artifactId>
             <version>${aws-sdk.version}</version>
-        </dependency>
-
-        <!-- Stripe -->
-        <dependency>
-            <groupId>com.stripe</groupId>
-            <artifactId>stripe-java</artifactId>
-            <version>${stripe.version}</version>
         </dependency>
 
         <!-- Utilities -->

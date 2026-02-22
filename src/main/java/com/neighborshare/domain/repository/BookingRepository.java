@@ -50,6 +50,8 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     Optional<Booking> findByIdAndOwnerId(UUID id, UUID ownerId);
 
+    Optional<Booking> findByPaymentIntentId(String paymentIntentId);
+
     default List<Booking> findActiveBookingsByItemId(UUID itemId) {
         return findByItemIdAndStatusIn(
             itemId,

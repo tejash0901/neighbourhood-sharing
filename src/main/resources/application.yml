@@ -97,10 +97,12 @@ aws:
   sns:
     topic-arn: ${SNS_TOPIC_ARN:}
 
-# Stripe
-stripe:
-  api-key: ${STRIPE_API_KEY:}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+# Razorpay
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID:}
+  key-secret: ${RAZORPAY_KEY_SECRET:}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  base-url: ${RAZORPAY_BASE_URL:https://api.razorpay.com}
 
 # Logging
 logging:
