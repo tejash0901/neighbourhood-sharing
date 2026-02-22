@@ -4,7 +4,9 @@ import com.neighborshare.domain.valueobject.BookingStatus;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.ColumnTransformer;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -28,6 +30,10 @@ public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_id", nullable = false)
@@ -56,7 +62,7 @@ public class Booking {
     private LocalDateTime endDate;
 
     // Generated column (SQL)
-    @Column(nullable = false)
+    @Column(nullable = false, insertable = false, updatable = false)
     private Integer durationDays;
 
     @Column(nullable = false, precision = 10, scale = 2)
@@ -94,6 +100,7 @@ public class Booking {
     private String returnNotes;
 
     @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     @ColumnTransformer(write = "?::jsonb")
     @Builder.Default
     private String returnImages = "[]";

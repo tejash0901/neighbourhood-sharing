@@ -21,6 +21,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     Page<Booking> findByOwnerId(UUID ownerId, Pageable pageable);
 
+    Page<Booking> findByBorrowerIdAndItemApartmentId(UUID borrowerId, UUID apartmentId, Pageable pageable);
+
+    Page<Booking> findByOwnerIdAndItemApartmentId(UUID ownerId, UUID apartmentId, Pageable pageable);
+
     Page<Booking> findByBorrowerIdAndStatus(UUID borrowerId, BookingStatus status, Pageable pageable);
 
     Page<Booking> findByOwnerIdAndStatus(UUID ownerId, BookingStatus status, Pageable pageable);
@@ -29,15 +33,16 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     List<Booking> findByItemIdAndStatusIn(UUID itemId, List<BookingStatus> statuses);
 
-    @Query("SELECT b FROM Booking b WHERE b.item.id = :itemId AND " +
-           "((b.startDate <= :endDate AND b.endDate >= :startDate) OR " +
-           "(b.status = 'REQUESTED' AND b.createdAt > :withinLastHours)) " +
+    @Query("SELECT b FROM Booking b WHERE b.item.id = :itemId " +
+           "AND b.status IN :statuses " +
+           "AND b.startDate <= :endDate " +
+           "AND b.endDate >= :startDate " +
            "ORDER BY b.startDate ASC")
     List<Booking> findConflictingBookings(
         @Param("itemId") UUID itemId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate,
-        @Param("withinLastHours") LocalDateTime withinLastHours
+        @Param("statuses") List<BookingStatus> statuses
     );
 
     List<Booking> findByBorrowerIdAndStatus(UUID userId, BookingStatus status);

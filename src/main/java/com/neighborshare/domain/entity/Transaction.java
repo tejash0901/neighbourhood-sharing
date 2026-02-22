@@ -3,6 +3,8 @@ package com.neighborshare.domain.entity;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.ColumnTransformer;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -55,6 +57,7 @@ public class Transaction {
     private String description;
 
     @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     @ColumnTransformer(write = "?::jsonb")
     @Builder.Default
     private String metadata = "{}";

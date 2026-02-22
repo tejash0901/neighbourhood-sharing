@@ -12,6 +12,7 @@ import com.neighborshare.dto.response.PaymentIntentResponse;
 import com.neighborshare.dto.response.TransactionResponse;
 import com.neighborshare.exception.InvalidStateException;
 import com.neighborshare.exception.ResourceNotFoundException;
+import com.neighborshare.exception.UnauthorizedException;
 import com.neighborshare.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,9 +57,10 @@ public class PaymentService {
     private String razorpayBaseUrl;
 
     @Transactional
-    public PaymentIntentResponse createBookingOrder(UUID userId, UUID bookingId) {
+    public PaymentIntentResponse createBookingOrder(UUID userId, UUID apartmentId, UUID bookingId) {
         Booking booking = bookingRepository.findByIdAndBorrowerId(bookingId, userId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
 
         if (booking.getStatus() != BookingStatus.ACCEPTED) {
             throw new InvalidStateException("Order can only be created for accepted bookings");
@@ -130,6 +132,7 @@ public class PaymentService {
     @Transactional
     public PaymentIntentResponse confirmBookingPayment(
         UUID userId,
+        UUID apartmentId,
         UUID bookingId,
         String providedOrderId,
         String paymentId,
@@ -137,6 +140,7 @@ public class PaymentService {
     ) {
         Booking booking = bookingRepository.findByIdAndBorrowerId(bookingId, userId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
 
         String orderId = providedOrderId;
         if (orderId == null || orderId.isBlank()) {
@@ -151,12 +155,27 @@ public class PaymentService {
         if (!orderId.equals(booking.getPaymentIntentId())) {
             throw new ValidationException("Order id mismatch for booking");
         }
+
+        // Idempotent confirmation: if already paid for this order, return success response.
+        if (booking.getPaidAt() != null && (booking.getStatus() == BookingStatus.ACCEPTED || booking.getStatus() == BookingStatus.ACTIVE)) {
+            return PaymentIntentResponse.builder()
+                .orderId(orderId)
+                .keyId(razorpayKeyId)
+                .amount(toPaise(booking.getTotalAmount()))
+                .currency("INR")
+                .status("paid")
+                .bookingStatus(booking.getStatus().name())
+                .build();
+        }
+        if (booking.getStatus() != BookingStatus.ACCEPTED) {
+            throw new InvalidStateException("Payment can only be confirmed for accepted bookings");
+        }
         verifyRazorpayPaymentSignature(orderId, paymentId, signature);
 
         if (booking.getPaidAt() == null) {
             booking.setPaidAt(LocalDateTime.now());
         }
-        if (booking.getStatus() == BookingStatus.ACCEPTED || booking.getStatus() == BookingStatus.REQUESTED) {
+        if (booking.getStatus() == BookingStatus.ACCEPTED && !LocalDateTime.now().isBefore(booking.getStartDate())) {
             booking.setStatus(BookingStatus.ACTIVE);
             booking.setStatusUpdatedAt(LocalDateTime.now());
         }
@@ -205,14 +224,15 @@ public class PaymentService {
 
             Booking booking = bookingOptional.get();
             if ("payment.captured".equals(event)) {
+                // Idempotent handling for duplicate capture webhooks.
                 if (booking.getPaidAt() == null) {
                     booking.setPaidAt(LocalDateTime.now());
+                    if (booking.getStatus() == BookingStatus.ACCEPTED && !LocalDateTime.now().isBefore(booking.getStartDate())) {
+                        booking.setStatus(BookingStatus.ACTIVE);
+                        booking.setStatusUpdatedAt(LocalDateTime.now());
+                    }
+                    bookingRepository.save(booking);
                 }
-                if (booking.getStatus() == BookingStatus.ACCEPTED || booking.getStatus() == BookingStatus.REQUESTED) {
-                    booking.setStatus(BookingStatus.ACTIVE);
-                    booking.setStatusUpdatedAt(LocalDateTime.now());
-                }
-                bookingRepository.save(booking);
                 upsertCompletedTransaction(booking, orderId, paymentId);
             } else if ("payment.failed".equals(event)) {
                 upsertFailedTransaction(booking, orderId, paymentId);
@@ -345,5 +365,12 @@ public class PaymentService {
             .createdAt(transaction.getCreatedAt())
             .completedAt(transaction.getCompletedAt())
             .build();
+    }
+
+    private void assertBookingInApartment(Booking booking, UUID apartmentId) {
+        UUID bookingApartmentId = booking.getItem().getApartment().getId();
+        if (!bookingApartmentId.equals(apartmentId)) {
+            throw new UnauthorizedException("Invalid apartment context");
+        }
     }
 }

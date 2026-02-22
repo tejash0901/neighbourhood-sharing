@@ -55,7 +55,11 @@ public class BookingService {
         if (!item.isAvailableForBooking()) {
             throw new InvalidStateException("Item is not available for booking");
         }
-        if (request.getEndDate().isBefore(request.getStartDate())) {
+        LocalDateTime now = LocalDateTime.now();
+        if (!request.getStartDate().isAfter(now)) {
+            throw new ValidationException("startDate must be in the future");
+        }
+        if (!request.getEndDate().isAfter(request.getStartDate())) {
             throw new ValidationException("endDate must be after startDate");
         }
 
@@ -71,7 +75,7 @@ public class BookingService {
             item.getId(),
             request.getStartDate(),
             request.getEndDate(),
-            LocalDateTime.now().minusHours(2)
+            List.of(BookingStatus.REQUESTED, BookingStatus.ACCEPTED, BookingStatus.ACTIVE)
         );
         if (!conflicts.isEmpty()) {
             throw new BookingConflictException("Item has conflicting bookings in requested time range");
@@ -102,36 +106,54 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public Page<BookingResponse> listBorrowedBookings(UUID userId, Pageable pageable) {
-        return bookingRepository.findByBorrowerId(userId, pageable).map(this::toResponse);
+    public Page<BookingResponse> listBorrowedBookings(UUID userId, UUID apartmentId, Pageable pageable) {
+        return bookingRepository.findByBorrowerIdAndItemApartmentId(userId, apartmentId, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public Page<BookingResponse> listLentBookings(UUID userId, Pageable pageable) {
-        return bookingRepository.findByOwnerId(userId, pageable).map(this::toResponse);
+    public Page<BookingResponse> listLentBookings(UUID userId, UUID apartmentId, Pageable pageable) {
+        return bookingRepository.findByOwnerIdAndItemApartmentId(userId, apartmentId, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public BookingResponse getBorrowerBooking(UUID userId, UUID bookingId) {
+    public BookingResponse getBorrowerBooking(UUID userId, UUID apartmentId, UUID bookingId) {
         Booking booking = bookingRepository.findByIdAndBorrowerId(bookingId, userId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
         return toResponse(booking);
     }
 
     @Transactional(readOnly = true)
-    public BookingResponse getOwnerBooking(UUID userId, UUID bookingId) {
+    public BookingResponse getOwnerBooking(UUID userId, UUID apartmentId, UUID bookingId) {
         Booking booking = bookingRepository.findByIdAndOwnerId(bookingId, userId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
         return toResponse(booking);
     }
 
     @Transactional
-    public BookingResponse acceptBooking(UUID ownerId, UUID bookingId) {
+    public BookingResponse acceptBooking(UUID ownerId, UUID apartmentId, UUID bookingId) {
         Booking booking = bookingRepository.findByIdAndOwnerId(bookingId, ownerId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
 
         if (booking.getStatus() != BookingStatus.REQUESTED) {
             throw new InvalidStateException("Only requested bookings can be accepted");
+        }
+        if (!booking.getItem().isAvailableForBooking()) {
+            throw new InvalidStateException("Item is not available for booking");
+        }
+
+        // Re-check overlap at acceptance time to avoid race conditions between multiple requests.
+        List<Booking> conflicts = bookingRepository.findConflictingBookings(
+            booking.getItem().getId(),
+            booking.getStartDate(),
+            booking.getEndDate(),
+            List.of(BookingStatus.ACCEPTED, BookingStatus.ACTIVE)
+        );
+        boolean hasOtherConflicts = conflicts.stream().anyMatch(conflict -> !conflict.getId().equals(booking.getId()));
+        if (hasOtherConflicts) {
+            throw new BookingConflictException("Booking overlaps with an already accepted/active booking");
         }
 
         booking.setStatus(BookingStatus.ACCEPTED);
@@ -140,9 +162,10 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse rejectBooking(UUID ownerId, UUID bookingId) {
+    public BookingResponse rejectBooking(UUID ownerId, UUID apartmentId, UUID bookingId) {
         Booking booking = bookingRepository.findByIdAndOwnerId(bookingId, ownerId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
 
         if (booking.getStatus() != BookingStatus.REQUESTED) {
             throw new InvalidStateException("Only requested bookings can be rejected");
@@ -154,24 +177,31 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse markBookingActive(UUID ownerId, UUID bookingId) {
+    public BookingResponse markBookingActive(UUID ownerId, UUID apartmentId, UUID bookingId) {
         Booking booking = bookingRepository.findByIdAndOwnerId(bookingId, ownerId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
 
         if (booking.getStatus() != BookingStatus.ACCEPTED) {
             throw new InvalidStateException("Only accepted bookings can be marked active");
         }
+        if (booking.getPaidAt() == null) {
+            throw new InvalidStateException("Booking must be paid before it can be marked active");
+        }
+        if (LocalDateTime.now().isBefore(booking.getStartDate())) {
+            throw new InvalidStateException("Booking cannot be marked active before startDate");
+        }
 
-        booking.setPaidAt(LocalDateTime.now());
         booking.setStatus(BookingStatus.ACTIVE);
         booking.setStatusUpdatedAt(LocalDateTime.now());
         return toResponse(bookingRepository.save(booking));
     }
 
     @Transactional
-    public BookingResponse returnBooking(UUID borrowerId, UUID bookingId, ReturnBookingRequest request) {
+    public BookingResponse returnBooking(UUID borrowerId, UUID apartmentId, UUID bookingId, ReturnBookingRequest request) {
         Booking booking = bookingRepository.findByIdAndBorrowerId(bookingId, borrowerId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
 
         if (booking.getStatus() != BookingStatus.ACTIVE) {
             throw new InvalidStateException("Only active bookings can be returned");
@@ -186,12 +216,13 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse completeBooking(UUID ownerId, UUID bookingId) {
+    public BookingResponse completeBooking(UUID ownerId, UUID apartmentId, UUID bookingId) {
         Booking booking = bookingRepository.findByIdAndOwnerId(bookingId, ownerId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId.toString()));
+        assertBookingInApartment(booking, apartmentId);
 
-        if (booking.getStatus() != BookingStatus.RETURNED && booking.getStatus() != BookingStatus.ACTIVE) {
-            throw new InvalidStateException("Only returned/active bookings can be completed");
+        if (booking.getStatus() != BookingStatus.RETURNED) {
+            throw new InvalidStateException("Only returned bookings can be completed");
         }
 
         if (booking.getReturnedAt() == null) {
@@ -205,6 +236,13 @@ public class BookingService {
     private User getUserInApartment(UUID userId, UUID apartmentId) {
         return userRepository.findByIdAndApartmentId(userId, apartmentId)
             .orElseThrow(() -> new UnauthorizedException("Invalid user context"));
+    }
+
+    private void assertBookingInApartment(Booking booking, UUID apartmentId) {
+        UUID bookingApartmentId = booking.getItem().getApartment().getId();
+        if (!bookingApartmentId.equals(apartmentId)) {
+            throw new UnauthorizedException("Invalid apartment context");
+        }
     }
 
     private BookingResponse toResponse(Booking booking) {

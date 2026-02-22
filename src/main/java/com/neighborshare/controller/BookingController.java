@@ -45,87 +45,105 @@ public class BookingController {
     @GetMapping("/me/borrowed")
     public ResponseEntity<Page<BookingResponse>> borrowedBookings(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
         UUID userId = extractUserId(authentication);
+        UUID apartmentId = extractApartmentId(httpRequest);
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(bookingService.listBorrowedBookings(userId, pageable));
+        return ResponseEntity.ok(bookingService.listBorrowedBookings(userId, apartmentId, pageable));
     }
 
     @GetMapping("/me/lent")
     public ResponseEntity<Page<BookingResponse>> lentBookings(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
         UUID userId = extractUserId(authentication);
+        UUID apartmentId = extractApartmentId(httpRequest);
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(bookingService.listLentBookings(userId, pageable));
+        return ResponseEntity.ok(bookingService.listLentBookings(userId, apartmentId, pageable));
     }
 
     @GetMapping("/me/borrowed/{bookingId}")
     public ResponseEntity<BookingResponse> getBorrowedBooking(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @PathVariable UUID bookingId
     ) {
         UUID userId = extractUserId(authentication);
-        return ResponseEntity.ok(bookingService.getBorrowerBooking(userId, bookingId));
+        UUID apartmentId = extractApartmentId(httpRequest);
+        return ResponseEntity.ok(bookingService.getBorrowerBooking(userId, apartmentId, bookingId));
     }
 
     @GetMapping("/me/lent/{bookingId}")
     public ResponseEntity<BookingResponse> getLentBooking(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @PathVariable UUID bookingId
     ) {
         UUID userId = extractUserId(authentication);
-        return ResponseEntity.ok(bookingService.getOwnerBooking(userId, bookingId));
+        UUID apartmentId = extractApartmentId(httpRequest);
+        return ResponseEntity.ok(bookingService.getOwnerBooking(userId, apartmentId, bookingId));
     }
 
     @PatchMapping("/{bookingId}/accept")
     public ResponseEntity<BookingResponse> acceptBooking(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @PathVariable UUID bookingId
     ) {
         UUID userId = extractUserId(authentication);
-        return ResponseEntity.ok(bookingService.acceptBooking(userId, bookingId));
+        UUID apartmentId = extractApartmentId(httpRequest);
+        return ResponseEntity.ok(bookingService.acceptBooking(userId, apartmentId, bookingId));
     }
 
     @PatchMapping("/{bookingId}/reject")
     public ResponseEntity<BookingResponse> rejectBooking(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @PathVariable UUID bookingId
     ) {
         UUID userId = extractUserId(authentication);
-        return ResponseEntity.ok(bookingService.rejectBooking(userId, bookingId));
+        UUID apartmentId = extractApartmentId(httpRequest);
+        return ResponseEntity.ok(bookingService.rejectBooking(userId, apartmentId, bookingId));
     }
 
     @PatchMapping("/{bookingId}/mark-active")
     public ResponseEntity<BookingResponse> markActive(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @PathVariable UUID bookingId
     ) {
         UUID userId = extractUserId(authentication);
-        return ResponseEntity.ok(bookingService.markBookingActive(userId, bookingId));
+        UUID apartmentId = extractApartmentId(httpRequest);
+        return ResponseEntity.ok(bookingService.markBookingActive(userId, apartmentId, bookingId));
     }
 
     @PatchMapping("/{bookingId}/return")
     public ResponseEntity<BookingResponse> returnBooking(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @PathVariable UUID bookingId,
         @RequestBody(required = false) ReturnBookingRequest request
     ) {
         UUID userId = extractUserId(authentication);
-        return ResponseEntity.ok(bookingService.returnBooking(userId, bookingId, request));
+        UUID apartmentId = extractApartmentId(httpRequest);
+        return ResponseEntity.ok(bookingService.returnBooking(userId, apartmentId, bookingId, request));
     }
 
     @PatchMapping("/{bookingId}/complete")
     public ResponseEntity<BookingResponse> completeBooking(
         Authentication authentication,
+        HttpServletRequest httpRequest,
         @PathVariable UUID bookingId
     ) {
         UUID userId = extractUserId(authentication);
-        return ResponseEntity.ok(bookingService.completeBooking(userId, bookingId));
+        UUID apartmentId = extractApartmentId(httpRequest);
+        return ResponseEntity.ok(bookingService.completeBooking(userId, apartmentId, bookingId));
     }
 
     private UUID extractUserId(Authentication authentication) {

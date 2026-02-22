@@ -3,6 +3,7 @@ package com.neighborshare.exception;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -132,6 +133,23 @@ public class GlobalExceptionHandler {
             "Booking Conflict",
             ex.getErrorCode(),
             ex.getMessage(),
+            request.getDescription(false).replace("uri=", ""),
+            null
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(
+        OptimisticLockingFailureException ex, WebRequest request) {
+
+        ErrorResponse response = new ErrorResponse(
+            LocalDateTime.now().toString(),
+            HttpStatus.CONFLICT.value(),
+            "Concurrency Conflict",
+            "CONCURRENCY_CONFLICT",
+            "The resource was updated by another request. Please retry.",
             request.getDescription(false).replace("uri=", ""),
             null
         );
