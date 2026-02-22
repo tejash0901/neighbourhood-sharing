@@ -17,6 +17,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmailAndApartmentId(String email, UUID apartmentId);
 
+    Optional<User> findByIdAndApartmentId(UUID id, UUID apartmentId);
+
     List<User> findByApartmentId(UUID apartmentId);
 
     Page<User> findByApartmentId(UUID apartmentId, Pageable pageable);

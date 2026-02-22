@@ -25,7 +25,11 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
 
     List<Item> findByOwnerIdAndDeletedAtIsNull(UUID ownerId);
 
+    Page<Item> findByOwnerIdAndDeletedAtIsNull(UUID ownerId, Pageable pageable);
+
     Optional<Item> findByIdAndDeletedAtIsNull(UUID id);
+
+    Optional<Item> findByIdAndApartmentIdAndDeletedAtIsNull(UUID id, UUID apartmentId);
 
     List<String> findDistinctCategoryByApartmentIdAndDeletedAtIsNull(UUID apartmentId);
 

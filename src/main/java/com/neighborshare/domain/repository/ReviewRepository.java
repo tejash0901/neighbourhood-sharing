@@ -20,6 +20,8 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     List<Review> findByBookingId(UUID bookingId);
 
+    boolean existsByBookingIdAndReviewerId(UUID bookingId, UUID reviewerId);
+
     Page<Review> findByReviewedUserIdOrderByHelpfulCountDesc(UUID userId, Pageable pageable);
 
     Double findAverageRatingByReviewedUserId(UUID userId);

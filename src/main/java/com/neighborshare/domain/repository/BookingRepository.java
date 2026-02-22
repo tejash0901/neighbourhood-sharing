@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -33,10 +34,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
            "(b.status = 'REQUESTED' AND b.createdAt > :withinLastHours)) " +
            "ORDER BY b.startDate ASC")
     List<Booking> findConflictingBookings(
-        UUID itemId,
-        LocalDateTime startDate,
-        LocalDateTime endDate,
-        LocalDateTime withinLastHours
+        @Param("itemId") UUID itemId,
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate,
+        @Param("withinLastHours") LocalDateTime withinLastHours
     );
 
     List<Booking> findByBorrowerIdAndStatus(UUID userId, BookingStatus status);
