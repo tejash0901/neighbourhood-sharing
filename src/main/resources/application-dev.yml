@@ -1,0 +1,17 @@
+razorpay:
+  mock-enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.neighborshare: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+management:
+  health:
+    redis:
+      enabled: false
+    mail:
+      enabled: false

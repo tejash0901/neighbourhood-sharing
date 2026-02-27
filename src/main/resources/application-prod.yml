@@ -1,0 +1,17 @@
+razorpay:
+  mock-enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.neighborshare: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+management:
+  health:
+    redis:
+      enabled: true
+    mail:
+      enabled: true
