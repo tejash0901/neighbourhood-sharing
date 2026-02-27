@@ -103,6 +103,7 @@ razorpay:
   key-secret: ${RAZORPAY_KEY_SECRET:}
   webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
   base-url: ${RAZORPAY_BASE_URL:https://api.razorpay.com}
+  mock-enabled: ${RAZORPAY_MOCK_ENABLED:true}
 
 # Logging
 logging:
@@ -122,6 +123,11 @@ management:
     health:
       show-details: always
       show-components: always
+  health:
+    redis:
+      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
 
 # Application-specific
 app:

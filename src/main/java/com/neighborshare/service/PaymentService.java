@@ -31,6 +31,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,6 +57,9 @@ public class PaymentService {
     @Value("${razorpay.base-url:https://api.razorpay.com}")
     private String razorpayBaseUrl;
 
+    @Value("${razorpay.mock-enabled:false}")
+    private boolean razorpayMockEnabled;
+
     @Transactional
     public PaymentIntentResponse createBookingOrder(UUID userId, UUID apartmentId, UUID bookingId) {
         Booking booking = bookingRepository.findByIdAndBorrowerId(bookingId, userId)
@@ -67,6 +71,24 @@ public class PaymentService {
         }
         if (booking.getPaidAt() != null) {
             throw new InvalidStateException("Booking is already paid");
+        }
+
+        if (razorpayMockEnabled) {
+            String orderId = booking.getPaymentIntentId();
+            if (orderId == null || orderId.isBlank()) {
+                orderId = "order_mock_" + booking.getId() + "_" + LocalDateTime.now().toEpochSecond(ZoneOffset.UTC);
+                booking.setPaymentIntentId(orderId);
+                bookingRepository.save(booking);
+            }
+            upsertPendingTransaction(booking, orderId, "created");
+            return PaymentIntentResponse.builder()
+                .orderId(orderId)
+                .keyId((razorpayKeyId == null || razorpayKeyId.isBlank()) ? "rzp_test_mock" : razorpayKeyId)
+                .amount(toPaise(booking.getTotalAmount()))
+                .currency("INR")
+                .status("created")
+                .bookingStatus(booking.getStatus().name())
+                .build();
         }
 
         ensureRazorpayConfigured();
@@ -149,8 +171,11 @@ public class PaymentService {
         if (orderId == null || orderId.isBlank()) {
             throw new ValidationException("No Razorpay order found for this booking");
         }
-        if (paymentId == null || paymentId.isBlank() || signature == null || signature.isBlank()) {
+        if (!razorpayMockEnabled && (paymentId == null || paymentId.isBlank() || signature == null || signature.isBlank())) {
             throw new ValidationException("razorpayPaymentId and razorpaySignature are required");
+        }
+        if (paymentId == null || paymentId.isBlank()) {
+            paymentId = "pay_mock_" + booking.getId();
         }
         if (!orderId.equals(booking.getPaymentIntentId())) {
             throw new ValidationException("Order id mismatch for booking");
@@ -170,7 +195,9 @@ public class PaymentService {
         if (booking.getStatus() != BookingStatus.ACCEPTED) {
             throw new InvalidStateException("Payment can only be confirmed for accepted bookings");
         }
-        verifyRazorpayPaymentSignature(orderId, paymentId, signature);
+        if (!razorpayMockEnabled) {
+            verifyRazorpayPaymentSignature(orderId, paymentId, signature);
+        }
 
         if (booking.getPaidAt() == null) {
             booking.setPaidAt(LocalDateTime.now());
